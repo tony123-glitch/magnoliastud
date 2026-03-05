@@ -1,0 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    overflow-x: hidden;
+  }
+}
+
+.font-serif {
+  font-family: 'Cormorant Garamond', serif;
+}
+
+.masonry-grid {
+  display: flex;
+  width: auto;
+}
+.masonry-grid_column {
+  background-clip: padding-box;
+}
+
+/* Base styles for GSAP */
+.gsap-reveal {
+  opacity: 0;
+  visibility: hidden;
+}
