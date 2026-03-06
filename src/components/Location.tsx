@@ -10,6 +10,9 @@ export function Location() {
     const contentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        const scope = sectionRef.current;
+        if (!scope) return;
+
         const ctx = gsap.context(() => {
             gsap.fromTo(
                 contentRef.current,
@@ -25,7 +28,7 @@ export function Location() {
                     },
                 }
             );
-        }, sectionRef);
+        }, scope);
 
         return () => ctx.revert();
     }, []);

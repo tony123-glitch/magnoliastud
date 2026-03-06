@@ -55,6 +55,9 @@ export function Portfolio() {
     const imagesRef = useRef<(HTMLAnchorElement | null)[]>([]);
 
     useEffect(() => {
+        const scope = containerRef.current;
+        if (!scope) return;
+
         const ctx = gsap.context(() => {
             imagesRef.current.forEach((img, i) => {
                 if (!img) return;
@@ -80,7 +83,7 @@ export function Portfolio() {
                     }
                 );
             });
-        }, containerRef);
+        }, scope);
 
         return () => ctx.revert();
     }, []);

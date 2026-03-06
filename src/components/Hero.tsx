@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -10,7 +10,10 @@ export function Hero({ onBookClick }: { onBookClick: (s?: string) => void }) {
     const overlayRef = useRef<HTMLDivElement>(null);
     const flashRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
+        const scope = containerRef.current;
+        if (!scope) return;
+
         const ctx = gsap.context(() => {
             // Initial reveal animation
             const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
@@ -45,7 +48,6 @@ export function Hero({ onBookClick }: { onBookClick: (s?: string) => void }) {
             });
 
             scrollTl
-                // Spin/zoom the camera toward you
                 .to('.hero-bg', {
                     scale: 2.2,
                     rotationZ: 15,
@@ -54,22 +56,22 @@ export function Hero({ onBookClick }: { onBookClick: (s?: string) => void }) {
                     ease: 'power2.inOut',
                     duration: 1
                 }, 0)
-                // The flash
                 .to(flashRef.current, {
                     opacity: 1,
-                    duration: 0.3,
+                    duration: 0.5,
                     ease: 'power2.in'
                 }, 0.7)
-                // Fade out flash
                 .to(flashRef.current, {
                     opacity: 0,
-                    duration: 0.8,
+                    duration: 1.5,
                     ease: 'power2.out'
                 }, 1.2);
 
-        }, containerRef);
+        }, scope);
 
-        return () => ctx.revert();
+        return () => {
+            ctx.revert();
+        };
     }, []);
 
     return (

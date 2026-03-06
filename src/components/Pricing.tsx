@@ -11,15 +11,15 @@ const packages = [
         description: "Customize your senior session to YOU! Outfit changes, locations, and creativity to match your personality! Each session is custom and curated to reflect your interests! No idea is too big, let's shoot for the stars!"
     },
     {
-        name: "Newborn Session",
-        price: "$75",
-        description: "The newborn stage goes by in a blink and they tiniest of fingers and toes become only a memory. Let me help you capture those precious newborn features you waited so patiently to see. Whether you prefer posed, studio, or in your home...I would be honored to be a part of helping you remember those first few weeks of the journey into parenthood."
-    },
-    {
         name: "Sports Event",
         price: "$75",
         description: "Sports photography is MY FAVORITE genres as it is truly the art of storytelling. The opportunity to capture an athlete's grit and determination through moments of hardship and triumph is truly an honor. Not to mention, any athlete knows that social media is the key in building your brand, depicting yourself, and crafting your narrative. Let me tell your athlete and/or team's story!",
         featured: true,
+    },
+    {
+        name: "Newborn Session",
+        price: "$75",
+        description: "The newborn stage goes by in a blink and they tiniest of fingers and toes become only a memory. Let me help you capture those precious newborn features you waited so patiently to see. Whether you prefer posed, studio, or in your home...I would be honored to be a part of helping you remember those first few weeks of the journey into parenthood."
     },
     {
         name: "Family Session",
@@ -43,6 +43,9 @@ export function Pricing({ onBookClick }: PricingProps) {
     const cardsRef = useRef<(HTMLDivElement | null)[]>([]);
 
     useEffect(() => {
+        const scope = sectionRef.current;
+        if (!scope) return;
+
         const ctx = gsap.context(() => {
             gsap.fromTo(
                 cardsRef.current.slice(0, 3), // Only animate the first 3 initially
@@ -59,7 +62,7 @@ export function Pricing({ onBookClick }: PricingProps) {
                     },
                 }
             );
-        }, sectionRef);
+        }, scope);
 
         return () => ctx.revert();
     }, []);

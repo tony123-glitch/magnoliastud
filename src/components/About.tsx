@@ -10,6 +10,9 @@ export function About() {
     const imageRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        const scope = sectionRef.current;
+        if (!scope) return;
+
         const ctx = gsap.context(() => {
             // Parallax image
             gsap.to('.about-img', {
@@ -39,7 +42,7 @@ export function About() {
                     },
                 }
             );
-        }, sectionRef);
+        }, scope);
 
         return () => ctx.revert();
     }, []);

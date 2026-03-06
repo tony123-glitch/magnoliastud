@@ -9,6 +9,9 @@ export function Reviews() {
     const textRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        const scope = sectionRef.current;
+        if (!scope) return;
+
         const ctx = gsap.context(() => {
             gsap.fromTo(
                 textRef.current,
@@ -24,7 +27,7 @@ export function Reviews() {
                     },
                 }
             );
-        }, sectionRef);
+        }, scope);
 
         return () => ctx.revert();
     }, []);

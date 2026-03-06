@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -26,53 +26,50 @@ const portfolioCollection = [
     { id: 19, url: '/portfolio_img/scenic/speaker.jpg', category: 'Events', span: 'col-span-1 md:col-span-1 row-span-1', position: 'object-center' },
     { id: 20, url: '/portfolio_img/sports/actionsport.jpg', category: 'Sports', span: 'col-span-1 md:col-span-1 row-span-1', position: 'object-top' },
 ];
+
 interface PortfolioProps {
     onBookClick: (service?: string) => void;
 }
 
 export function PortfolioPage({ onBookClick }: PortfolioProps) {
     const containerRef = useRef<HTMLDivElement>(null);
-    const headerRef = useRef<HTMLDivElement>(null);
-    const imagesRef = useRef<(HTMLDivElement | null)[]>([]);
-
-    useLayoutEffect(() => {
-        // Immediately snap to top of page before GSAP renders the DOM
-        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-
-        // Force GSAP to recalculate positions shortly after mount
-        const timer = setTimeout(() => {
-            ScrollTrigger.refresh();
-        }, 100);
-
-        return () => clearTimeout(timer);
-    }, []);
 
     useEffect(() => {
-        const ctx = gsap.context(() => {
-            // Header animation
-            gsap.fromTo(
-                '.portfolio-header-text',
-                { y: 50, opacity: 0 },
-                { y: 0, opacity: 1, duration: 1.2, stagger: 0.2, ease: 'power3.out' }
-            );
+        const scope = containerRef.current;
+        if (!scope) return;
 
-            // Images animation
-            imagesRef.current.forEach((img, i) => {
-                if (!img) return;
-                gsap.fromTo(
-                    img,
-                    { y: 60, opacity: 0, scale: 0.95 },
-                    {
-                        y: 0, opacity: 1, scale: 1, duration: 1.2, ease: 'power3.out',
-                        scrollTrigger: {
-                            trigger: img,
-                            start: 'top 85%',
-                        },
-                        delay: (i % 4) * 0.1
-                    }
-                );
+        // Scroll to top immediately
+        window.scrollTo(0, 0);
+
+        // IMPORTANT: We do NOT set opacity:0 on anything.
+        // Content is ALWAYS visible by default.
+        // GSAP only adds subtle scroll-triggered scale/translate effects ON TOP of already-visible content.
+        const ctx = gsap.context(() => {
+            // Header slides up on entry (already visible, just adds flair)
+            gsap.from('.portfolio-header-text', {
+                y: 30,
+                duration: 0.8,
+                stagger: 0.15,
+                ease: 'power3.out',
+                clearProps: 'all', // Ensures GSAP cleans up after itself
             });
-        }, containerRef);
+
+            // Images subtly rise as they scroll into view
+            gsap.utils.toArray<HTMLElement>('.portfolio-grid-item').forEach((item, i) => {
+                gsap.from(item, {
+                    y: 25,
+                    duration: 0.7,
+                    ease: 'power3.out',
+                    delay: (i % 4) * 0.05,
+                    clearProps: 'all', // CRITICAL: removes inline styles after animating so images can't get stuck
+                    scrollTrigger: {
+                        trigger: item,
+                        start: 'top 98%',
+                        once: true, // Only animates once, never hides the element again
+                    },
+                });
+            });
+        }, scope);
 
         return () => ctx.revert();
     }, []);
@@ -81,7 +78,7 @@ export function PortfolioPage({ onBookClick }: PortfolioProps) {
         <div ref={containerRef} className="bg-[#131f24] min-h-screen pt-32 pb-24 md:pb-32">
 
             {/* Header Section */}
-            <div ref={headerRef} className="max-w-7xl mx-auto px-6 md:px-12 mb-20 md:mb-32 text-center md:text-left">
+            <div className="max-w-7xl mx-auto px-6 md:px-12 mb-20 md:mb-32 text-center md:text-left">
                 <p className="portfolio-header-text text-[#c6b198] text-sm tracking-[0.3em] uppercase mb-4">
                     The Archive
                 </p>
@@ -97,11 +94,10 @@ export function PortfolioPage({ onBookClick }: PortfolioProps) {
             {/* Masonry Grid */}
             <div className="max-w-[1600px] mx-auto px-4 md:px-8">
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 grid-flow-row-dense gap-2 md:gap-4 auto-rows-[200px] md:auto-rows-[300px]">
-                    {portfolioCollection.map((img, i) => (
+                    {portfolioCollection.map((img) => (
                         <div
                             key={img.id}
-                            ref={(el) => { imagesRef.current[i] = el; }}
-                            className={`relative overflow-hidden group cursor-pointer ${img.span}`}
+                            className={`portfolio-grid-item relative overflow-hidden group cursor-pointer ${img.span}`}
                         >
                             <div className="absolute inset-0 bg-[#131f24]/30 group-hover:bg-[#131f24]/0 transition-colors duration-700 z-10" />
                             <img

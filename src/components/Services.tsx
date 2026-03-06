@@ -16,7 +16,7 @@ const services = [
         title: 'Newborn Session',
         price: 'From $75',
         description: 'The newborn stage goes by in a blink and the tiniest of fingers and toes become only a memory. Let me help you capture those precious features you waited so patiently to see. Posed, studio, or in your home.',
-        image: '/portfolio_img/family_pics/kidssnow.jpg',
+        image: '/portfolio_img/newborn/newborn2.jpg',
     },
     {
         title: 'Sports Event',
@@ -46,6 +46,9 @@ export function Services({ onBookClick }: ServicesProps) {
     const cardsRef = useRef<(HTMLDivElement | null)[]>([]);
 
     useEffect(() => {
+        const scope = sectionRef.current;
+        if (!scope) return;
+
         const ctx = gsap.context(() => {
             // Header Animation
             gsap.fromTo(
@@ -81,7 +84,7 @@ export function Services({ onBookClick }: ServicesProps) {
                     }
                 );
             });
-        }, sectionRef);
+        }, scope);
 
         return () => ctx.revert();
     }, []);
