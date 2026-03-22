@@ -19,6 +19,7 @@ export function Navbar({ onBookClick }: { onBookClick: () => void }) {
         { name: 'Portfolio', href: '/portfolio', isLink: true },
         { name: 'Pricing', href: '/#pricing', isLink: false },
         { name: 'Reviews', href: '/#reviews', isLink: false },
+        { name: 'Client Portal', href: '/portal', isLink: true },
     ];
 
     return (

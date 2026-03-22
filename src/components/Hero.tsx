@@ -83,10 +83,20 @@ export function Hero({ onBookClick }: { onBookClick: (s?: string) => void }) {
                     alt="Live Band Event Photography"
                     className="hero-bg w-full h-full object-cover object-center"
                 />
+                
+                {/* Secret Admin Link over the Blue Light */}
+                {/* The blue light is roughly top-left. Positioning this absolutely over the image. */}
+                <a 
+                    href="/admin/login" 
+                    className="absolute z-50 top-[2%] left-[2%] w-[20%] h-[30%] md:top-[5%] md:left-[5%] md:w-[10%] md:h-[20%] cursor-pointer opacity-0"
+                    title="Secret Entrance"
+                    aria-label="Admin Login"
+                ></a>
+
                 {/* Cinematic Gradient Overlay */}
                 <div
                     ref={overlayRef}
-                    className="absolute inset-0 bg-gradient-to-t from-[#131f24] via-[#131f24]/50 to-[#131f24]/20 z-10"
+                    className="absolute inset-0 bg-gradient-to-t from-[#131f24] via-[#131f24]/50 to-[#131f24]/20 z-10 pointer-events-none"
                 />
             </div>
 

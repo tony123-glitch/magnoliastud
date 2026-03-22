@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Loader2, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface BookingModalProps {
     isOpen: boolean;
@@ -23,6 +24,10 @@ export function BookingModal({ isOpen, onClose, preselectedService }: BookingMod
         date: '',
         description: ''
     });
+    
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Prevent scrolling when modal is open
     useEffect(() => {
@@ -31,6 +36,10 @@ export function BookingModal({ isOpen, onClose, preselectedService }: BookingMod
             if (preselectedService) {
                 setFormData(prev => ({ ...prev, service: preselectedService }));
             }
+            // Reset state
+            setIsSuccess(false);
+            setError(null);
+            setIsSubmitting(false);
         } else {
             document.body.style.overflow = 'unset';
         }
@@ -41,24 +50,51 @@ export function BookingModal({ isOpen, onClose, preselectedService }: BookingMod
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsSubmitting(true);
+        setError(null);
 
-        // Construct email subject and body
-        const subject = encodeURIComponent(`New Booking Inquiry: ${formData.service} - ${formData.name}`);
-        const body = encodeURIComponent(
-            `Name: ${formData.name}\n` +
-            `Email: ${formData.email}\n` +
-            `Requested Service: ${formData.service}\n` +
-            `Preferred Date: ${formData.date}\n\n` +
-            `Description/Vision:\n${formData.description}\n`
-        );
+        try {
+            // 1. Insert Client
+            const { data: client, error: clientError } = await supabase
+                .from('clients')
+                .insert([{
+                    full_name: formData.name,
+                    email: formData.email,
+                }])
+                .select()
+                .single();
 
-        // Redirect to default email client
-        window.location.href = `mailto:toneloc012508@gmail.com?subject=${subject}&body=${body}`;
+            if (clientError) throw clientError;
 
-        // Optional: Close modal after clicking
-        onClose();
+            // 2. Insert Project (Booking)
+            const { error: projectError } = await supabase
+                .from('projects')
+                .insert([{
+                    client_id: client.id,
+                    session_type: formData.service,
+                    preferred_date: formData.date,
+                    internal_notes: formData.description,
+                    status: 'Booked'
+                }]);
+
+            if (projectError) throw projectError;
+
+            // Success
+            setIsSuccess(true);
+            setTimeout(() => {
+                onClose();
+                setFormData({ name: '', email: '', service: '', date: '', description: '' });
+                setIsSuccess(false);
+            }, 3000);
+
+        } catch (err: any) {
+            console.error('Error submitting booking:', err);
+            setError('Something went wrong. Please try again later.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -86,103 +122,127 @@ export function BookingModal({ isOpen, onClose, preselectedService }: BookingMod
                 </button>
 
                 <div className="p-8 md:p-12">
-                    <div className="text-center mb-10">
-                        <h2 id="modal-title" className="font-serif text-3xl md:text-5xl text-white mb-4">
-                            Book a Session
-                        </h2>
-                        <p className="text-[#c6b198] font-light text-sm md:text-base tracking-wide">
-                            Tell us about your vision. We'll be in touch shortly.
-                        </p>
-                    </div>
-
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Name Line */}
-                            <div className="space-y-2">
-                                <label htmlFor="name" className="text-xs uppercase tracking-widest text-[#c6b198]/80">Full Name</label>
-                                <input
-                                    id="name"
-                                    type="text"
-                                    required
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    className="w-full bg-[#131f24] border border-white/10 text-white px-4 py-3 focus:outline-none focus:border-[#c6b198]/50 transition-colors"
-                                    placeholder="Jane Doe"
-                                />
+                    {isSuccess ? (
+                        <div className="text-center py-16 flex flex-col items-center">
+                            <CheckCircle2 className="w-16 h-16 text-[#c6b198] mb-6" />
+                            <h2 className="font-serif text-3xl md:text-4xl text-white mb-4">Request Sent</h2>
+                            <p className="text-[#c6b198] font-light text-base max-w-sm mx-auto">
+                                Thank you for reaching out. We have received your booking request and will be in contact to confirm details shortly.
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="text-center mb-10">
+                                <h2 id="modal-title" className="font-serif text-3xl md:text-5xl text-white mb-4">
+                                    Book a Session
+                                </h2>
+                                <p className="text-[#c6b198] font-light text-sm md:text-base tracking-wide">
+                                    Tell us about your vision. We'll be in touch shortly.
+                                </p>
                             </div>
 
-                            {/* Email Line */}
-                            <div className="space-y-2">
-                                <label htmlFor="email" className="text-xs uppercase tracking-widest text-[#c6b198]/80">Email Address</label>
-                                <input
-                                    id="email"
-                                    type="email"
-                                    required
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    className="w-full bg-[#131f24] border border-white/10 text-white px-4 py-3 focus:outline-none focus:border-[#c6b198]/50 transition-colors"
-                                    placeholder="jane@example.com"
-                                />
-                            </div>
-                        </div>
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                {error && (
+                                    <div className="p-4 bg-red-900/30 border border-red-500/50 text-red-200 text-sm rounded">
+                                        {error}
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Name Line */}
+                                    <div className="space-y-2">
+                                        <label htmlFor="name" className="text-xs uppercase tracking-widest text-[#c6b198]/80">Full Name</label>
+                                        <input
+                                            id="name"
+                                            type="text"
+                                            required
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            className="w-full bg-[#131f24] border border-white/10 text-white px-4 py-3 focus:outline-none focus:border-[#c6b198]/50 transition-colors"
+                                            placeholder="Jane Doe"
+                                        />
+                                    </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Service Selection */}
-                            <div className="space-y-2">
-                                <label htmlFor="service" className="text-xs uppercase tracking-widest text-[#c6b198]/80">Session Type</label>
-                                <select
-                                    id="service"
-                                    required
-                                    value={formData.service}
-                                    onChange={(e) => setFormData({ ...formData, service: e.target.value })}
-                                    className="w-full bg-[#131f24] border border-white/10 text-white px-4 py-3 focus:outline-none focus:border-[#c6b198]/50 transition-colors appearance-none"
-                                >
-                                    <option value="" disabled className="text-white/40">Select a service</option>
-                                    {services.map((service) => (
-                                        <option key={service} value={service}>{service}</option>
-                                    ))}
-                                </select>
-                            </div>
+                                    {/* Email Line */}
+                                    <div className="space-y-2">
+                                        <label htmlFor="email" className="text-xs uppercase tracking-widest text-[#c6b198]/80">Email Address</label>
+                                        <input
+                                            id="email"
+                                            type="email"
+                                            required
+                                            value={formData.email}
+                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                            className="w-full bg-[#131f24] border border-white/10 text-white px-4 py-3 focus:outline-none focus:border-[#c6b198]/50 transition-colors"
+                                            placeholder="jane@example.com"
+                                        />
+                                    </div>
+                                </div>
 
-                            {/* Date Selection */}
-                            <div className="space-y-2">
-                                <label htmlFor="date" className="text-xs uppercase tracking-widest text-[#c6b198]/80">Preferred Date</label>
-                                <input
-                                    id="date"
-                                    type="date"
-                                    value={formData.date}
-                                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                                    className="w-full bg-[#131f24] border border-white/10 text-white px-4 py-3 focus:outline-none focus:border-[#c6b198]/50 transition-colors"
-                                    style={{ colorScheme: 'dark' }}
-                                />
-                            </div>
-                        </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Service Selection */}
+                                    <div className="space-y-2">
+                                        <label htmlFor="service" className="text-xs uppercase tracking-widest text-[#c6b198]/80">Session Type</label>
+                                        <select
+                                            id="service"
+                                            required
+                                            value={formData.service}
+                                            onChange={(e) => setFormData({ ...formData, service: e.target.value })}
+                                            className="w-full bg-[#131f24] border border-white/10 text-white px-4 py-3 focus:outline-none focus:border-[#c6b198]/50 transition-colors appearance-none"
+                                        >
+                                            <option value="" disabled className="text-white/40">Select a service</option>
+                                            {services.map((service) => (
+                                                <option key={service} value={service}>{service}</option>
+                                            ))}
+                                        </select>
+                                    </div>
 
-                        {/* Description Textarea */}
-                        <div className="space-y-2">
-                            <label htmlFor="description" className="text-xs uppercase tracking-widest text-[#c6b198]/80">Vision & Details</label>
-                            <textarea
-                                id="description"
-                                rows={4}
-                                required
-                                value={formData.description}
-                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                className="w-full bg-[#131f24] border border-white/10 text-white px-4 py-3 focus:outline-none focus:border-[#c6b198]/50 transition-colors resize-none"
-                                placeholder="Tell us a bit about who we're photographing and any specific ideas you have..."
-                            />
-                        </div>
+                                    {/* Date Selection */}
+                                    <div className="space-y-2">
+                                        <label htmlFor="date" className="text-xs uppercase tracking-widest text-[#c6b198]/80">Preferred Date</label>
+                                        <input
+                                            id="date"
+                                            type="date"
+                                            value={formData.date}
+                                            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                            className="w-full bg-[#131f24] border border-white/10 text-white px-4 py-3 focus:outline-none focus:border-[#c6b198]/50 transition-colors"
+                                            style={{ colorScheme: 'dark' }}
+                                        />
+                                    </div>
+                                </div>
 
-                        {/* Submit */}
-                        <div className="pt-4">
-                            <button
-                                type="submit"
-                                className="w-full py-4 bg-[#c6b198] text-[#131f24] text-sm tracking-widest uppercase font-medium hover:bg-white transition-colors flex justify-center items-center"
-                            >
-                                Send Inquiry via Email
-                            </button>
-                        </div>
-                    </form>
+                                {/* Description Textarea */}
+                                <div className="space-y-2">
+                                    <label htmlFor="description" className="text-xs uppercase tracking-widest text-[#c6b198]/80">Vision & Details</label>
+                                    <textarea
+                                        id="description"
+                                        rows={4}
+                                        required
+                                        value={formData.description}
+                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                        className="w-full bg-[#131f24] border border-white/10 text-white px-4 py-3 focus:outline-none focus:border-[#c6b198]/50 transition-colors resize-none"
+                                        placeholder="Tell us a bit about who we're photographing and any specific ideas you have..."
+                                    />
+                                </div>
 
+                                {/* Submit */}
+                                <div className="pt-4">
+                                    <button
+                                        type="submit"
+                                        disabled={isSubmitting}
+                                        className="w-full py-4 bg-[#c6b198] text-[#131f24] text-sm tracking-widest uppercase font-medium hover:bg-white transition-colors flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isSubmitting ? (
+                                            <>
+                                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                                Submitting Request...
+                                            </>
+                                        ) : (
+                                            "Submit Booking Request"
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
