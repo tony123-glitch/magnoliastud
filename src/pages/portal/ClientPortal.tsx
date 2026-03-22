@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, LogOut, Download, Lock, CheckCircle2, FileImage } from 'lucide-react';
+import { Loader2, LogOut, Download, Lock, CheckCircle2, FileImage, X } from 'lucide-react';
 import { Navbar } from '../../components/Navbar';
 import { Footer } from '../../components/Footer';
 
@@ -9,8 +9,10 @@ export function ClientPortal() {
   const [project, setProject] = useState<any>(null);
   const [client, setClient] = useState<any>(null);
   const [assets, setAssets] = useState<any[]>([]);
+  const [signedUrls, setSignedUrls] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(true);
   const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -56,7 +58,24 @@ export function ClientPortal() {
         .eq('project_id', projectData.id)
         .order('uploaded_at', { ascending: false });
       
-      if (assetData) setAssets(assetData);
+      if (assetData && assetData.length > 0) {
+        setAssets(assetData);
+        // Prefetch signed URLs for thumbnails
+        const paths = assetData.map(a => a.file_path);
+        const { data: urlData } = await supabase.storage
+          .from('client-assets')
+          .createSignedUrls(paths, 24 * 60 * 60); // 24 hours
+        
+        if (urlData) {
+          const urlMap: { [key: string]: string } = {};
+          urlData.forEach((u, idx) => {
+            if (!u.error) {
+              urlMap[assetData[idx].id] = u.signedUrl;
+            }
+          });
+          setSignedUrls(urlMap);
+        }
+      }
 
     } catch (err) {
       console.error(err);
@@ -202,17 +221,30 @@ export function ClientPortal() {
               
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                 {assets.map((asset) => (
-                  <div key={asset.id} className="group relative aspect-square bg-[#1c2e36] rounded-xl overflow-hidden border border-white/5 transition-all hover:border-[#c6b198]/30">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <FileImage className="w-10 h-10 text-white/10 group-hover:scale-110 transition-transform duration-500" />
+                  <div key={asset.id} className="group relative aspect-square bg-[#1c2e36] rounded-xl overflow-hidden border border-white/5 transition-all hover:border-[#c6b198]/30 cursor-pointer">
+                    <div 
+                      onClick={() => signedUrls[asset.id] && setSelectedImage(signedUrls[asset.id])} 
+                      className="absolute inset-0 block"
+                    >
+                      {signedUrls[asset.id] ? (
+                        <img src={signedUrls[asset.id]} alt="Gallery Asset" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <FileImage className="w-10 h-10 text-white/10 group-hover:scale-110 transition-transform duration-500" />
+                        </div>
+                      )}
                     </div>
                     
                     {/* Hover Download Action */}
-                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <div className="absolute inset-x-0 bottom-0 top-auto p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pointer-events-none">
                       <button
-                        onClick={() => downloadAsset(asset)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          downloadAsset(asset);
+                        }}
                         disabled={downloadingFile === asset.id}
-                        className="px-4 py-2 bg-[#c6b198] text-[#131f24] rounded-full text-xs font-semibold uppercase tracking-wider flex items-center space-x-2 hover:bg-white transition-colors"
+                        className="px-4 py-2 bg-[#c6b198] text-[#131f24] rounded-full text-xs font-semibold uppercase tracking-wider flex items-center space-x-2 hover:bg-white transition-colors pointer-events-auto"
                       >
                         {downloadingFile === asset.id ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -239,6 +271,24 @@ export function ClientPortal() {
         </div>
       </div>
       <Footer onBookClick={() => {}} />
+
+      {/* Lightbox Modal */}
+      {selectedImage && (
+        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center backdrop-blur-sm p-4">
+          <button 
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-6 left-6 text-white/60 hover:text-white bg-black/50 hover:bg-black p-3 rounded-full transition-all z-[110]"
+          >
+            <X className="w-8 h-8" />
+          </button>
+          
+          <img 
+            src={selectedImage} 
+            alt="Full size preview" 
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-in fade-in zoom-in duration-300"
+          />
+        </div>
+      )}
     </>
   );
 }

@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Loader2, ArrowLeft, UploadCloud, CheckCircle2, FileImage, Trash2, Key } from 'lucide-react';
+import { Loader2, ArrowLeft, UploadCloud, CheckCircle2, FileImage, Trash2, Key, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 export function AdminProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const [project, setProject] = useState<any>(null);
   const [assets, setAssets] = useState<any[]>([]);
+  const [signedUrls, setSignedUrls] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [error, setError] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -43,7 +45,27 @@ export function AdminProjectDetail() {
       .select('*')
       .eq('project_id', id)
       .order('uploaded_at', { ascending: false });
-    if (data) setAssets(data);
+      
+    if (data && data.length > 0) {
+      setAssets(data);
+      // Fetch signed URLs for all assets so we can display thumbnails
+      const paths = data.map(a => a.file_path);
+      const { data: urlData } = await supabase.storage
+        .from('client-assets')
+        .createSignedUrls(paths, 60 * 60); // 1 hour expiry
+      
+      if (urlData) {
+        const urlMap: { [key: string]: string } = {};
+        urlData.forEach((u, idx) => {
+          if (!u.error) {
+            urlMap[data[idx].id] = u.signedUrl;
+          }
+        });
+        setSignedUrls(urlMap);
+      }
+    } else {
+      setAssets([]);
+    }
   };
 
   const updateStatus = async (newStatus: string) => {
@@ -294,21 +316,34 @@ export function AdminProjectDetail() {
             {/* Asset Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 flex-1 content-start">
               {assets.map((asset) => (
-                <div key={asset.id} className="group relative aspect-square bg-[#1c2e36] rounded-xl overflow-hidden border border-white/5">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <FileImage className="w-8 h-8 text-white/20" />
+                <div key={asset.id} className="group relative aspect-square bg-[#1c2e36] rounded-xl overflow-hidden border border-white/5 cursor-pointer">
+                  <div 
+                    onClick={() => signedUrls[asset.id] && setSelectedImage(signedUrls[asset.id])} 
+                    className="absolute inset-0 block"
+                  >
+                    {signedUrls[asset.id] ? (
+                      <img src={signedUrls[asset.id]} alt={asset.file_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <FileImage className="w-8 h-8 text-white/20" />
+                      </div>
+                    )}
                   </div>
                   {/* Action Overlay */}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     <button 
-                      onClick={() => deleteAsset(asset.id, asset.file_path)}
-                      className="p-2 bg-red-500/80 text-white rounded-full hover:bg-red-500 hover:scale-110 transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        deleteAsset(asset.id, asset.file_path);
+                      }}
+                      className="p-2 bg-red-500/90 text-white rounded-full hover:bg-red-500 hover:scale-110 shadow-lg transition-transform"
                       title="Delete image"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+                  <div className="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
                     <p className="text-white/80 text-[10px] truncate">{asset.file_name}</p>
                   </div>
                 </div>
@@ -325,6 +360,24 @@ export function AdminProjectDetail() {
         </div>
 
       </div>
+
+      {/* Lightbox Modal */}
+      {selectedImage && (
+        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center backdrop-blur-sm p-4">
+          <button 
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-6 left-6 text-white/60 hover:text-white bg-black/50 hover:bg-black p-3 rounded-full transition-all z-[110]"
+          >
+            <X className="w-8 h-8" />
+          </button>
+          
+          <img 
+            src={selectedImage} 
+            alt="Full size preview" 
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-in fade-in zoom-in duration-300"
+          />
+        </div>
+      )}
     </div>
   );
 }
